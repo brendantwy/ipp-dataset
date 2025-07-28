@@ -1,0 +1,282 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://eezee:1Techplace!@localhost:5432/eezee-seller-center-server?pool_timeout=0&connect_timeout=0"
+}
+
+
+model Catalog {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  id                     String  @id @default(cuid())
+  name                   String
+  description            String
+  sellerId               String
+  isPublic               Boolean @default(false)
+  isForSellerCompanyPage Boolean @default(false)
+
+  CatalogForEnterprises         CatalogForEnterprise[]
+  ItemsInCatalog                ItemInCatalog[]
+  CatalogAffectedByBulkEditJobs CatalogAffectedByBulkEditJob[]
+}
+
+model ItemInCatalog {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  id String @id @default(cuid())
+
+  Catalog   Catalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  catalogId String
+
+  Item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade) // onUpdate: Cascade is a default
+  itemId String
+
+  @@unique([catalogId, itemId])
+}
+
+model CatalogForEnterprise {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  id String @id @default(cuid())
+
+  Catalog   Catalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  catalogId String
+
+  EnterpriseCustomer   EnterpriseCustomer @relation(fields: [enterpriseCustomerId], references: [id], onDelete: Cascade)
+  enterpriseCustomerId String
+
+  @@unique([catalogId, enterpriseCustomerId])
+}
+
+model EnterpriseCustomer {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  id String @id @default(cuid())
+
+  sellerId           String
+  eezeeEnterpriseId  String
+  eezeeEnterpriseKey String
+
+  CatalogForEnterprise CatalogForEnterprise[]
+
+  @@unique([sellerId, eezeeEnterpriseId])
+}
+
+model ItemCategory {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  titleUrl String @id
+  titleEn  String @unique
+
+  isItemSpecsTableLiveOnMarketplace Boolean @default(false)
+
+  // FK
+  Items                   Item[]
+  ItemCategorySpecHeaders ItemCategorySpecHeader[]
+}
+
+model ItemSpecification {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  value     String
+
+  // FK
+  Item   Item   @relation(fields: [itemId], references: [id])
+  itemId String
+
+  ItemCategorySpecHeader   ItemCategorySpecHeader @relation(fields: [itemCategorySpecHeaderId], references: [id])
+  itemCategorySpecHeaderId Int
+
+  @@index([itemId])
+  @@index([value, itemCategorySpecHeaderId])
+}
+
+model ItemCategorySpecHeader {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name          String
+  nameKebabCase String
+
+  unit               String
+  dataType           E_SPEC_COLUMN_DATATYPES
+  decimalPrecision   Int?
+  isDefault          Boolean                 @default(false)
+  isRequired         Boolean                 @default(false)
+  hasTolerancePrefix Boolean                 @default(false)
+  isFilterDisabled   Boolean                 @default(false)
+  colPosition        Int
+
+  ItemSpecifications ItemSpecification[]
+
+  // FK
+  itemCategoryTitleUrl String
+  ItemCategory         ItemCategory @relation(fields: [itemCategoryTitleUrl], references: [titleUrl])
+
+  @@unique([nameKebabCase, unit, itemCategoryTitleUrl])
+}
+
+model SpecTableMetadata {
+  id                   Int      @id @default(autoincrement())
+  itemBaseCurrency     String
+  itemCategoryTitleUrl String
+  lastFetchedDate      DateTime
+  isProcessing         Boolean  @default(false)
+
+  @@unique([itemBaseCurrency, itemCategoryTitleUrl])
+}
+
+model SpecTablePreview {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  id                   Int      @id @default(autoincrement())
+  itemBaseCurrency     String
+  itemCategoryTitleUrl String
+  lastRefreshedDate    DateTime
+  jsonData             Json?
+
+  @@unique([itemBaseCurrency, itemCategoryTitleUrl])
+}
+
+//      ██╗ ██████╗ ██████╗ ███████╗
+//      ██║██╔═══██╗██╔══██╗██╔════╝
+//      ██║██║   ██║██████╔╝███████╗
+// ██   ██║██║   ██║██╔══██╗╚════██║
+// ╚█████╔╝╚██████╔╝██████╔╝███████║
+//  ╚════╝  ╚═════╝ ╚═════╝ ╚══════╝
+//                                  
+model BulkEditJobForItemsInCatalog {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  id String @id @default(cuid())
+
+  sellerId String
+
+  FileStorageBucket   FileStorageBucket @relation(fields: [fileStorageBucketId], references: [id])
+  fileStorageBucketId String            @unique
+
+  CatalogsAffectedByBulkEditJob CatalogAffectedByBulkEditJob[]
+}
+
+model CatalogAffectedByBulkEditJob {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  id String @id @default(cuid())
+
+  Catalog   Catalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  catalogId String
+
+  BulkEditJobForItemsInCatalog   BulkEditJobForItemsInCatalog @relation(fields: [bulkEditJobForItemsInCatalogId], references: [id])
+  bulkEditJobForItemsInCatalogId String
+}
+
+// ███████╗██╗  ██╗ ██████╗███████╗██╗
+// ██╔════╝╚██╗██╔╝██╔════╝██╔════╝██║
+// █████╗   ╚███╔╝ ██║     █████╗  ██║
+// ██╔══╝   ██╔██╗ ██║     ██╔══╝  ██║
+// ███████╗██╔╝ ██╗╚██████╗███████╗███████╗
+// ╚══════╝╚═╝  ╚═╝ ╚═════╝╚══════╝╚══════╝
+//
+model ExcelRowRawData {
+  id String @id @default(cuid())
+
+  rowId               Int
+  dataJsonStringified String
+  errorFields         String[]
+  dataModel           MODEL_WITH_EXCEL
+  fileStorageBucketId String
+  FileStorageBucket   FileStorageBucket @relation(fields: [fileStorageBucketId], references: [id], onDelete: Cascade)
+}
+
+model FileStorageBucket {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  id         String @id @default(cuid())
+  fileName   String
+  fileLink   String // Google Storage Link
+  uploadedBy String // sellerId
+
+  ExcelRowRawData ExcelRowRawData[]
+
+  BulkEditJobForItemsInCatalog BulkEditJobForItemsInCatalog?
+}
+
+// ███╗   ███╗ ██████╗ ███╗   ██╗ ██████╗  ██████╗
+// ████╗ ████║██╔═══██╗████╗  ██║██╔════╝ ██╔═══██╗
+// ██╔████╔██║██║   ██║██╔██╗ ██║██║  ███╗██║   ██║
+// ██║╚██╔╝██║██║   ██║██║╚██╗██║██║   ██║██║   ██║
+// ██║ ╚═╝ ██║╚██████╔╝██║ ╚████║╚██████╔╝╚██████╔╝
+// ╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝  ╚═════╝
+//
+
+// @todo - remove default values for `modelNumber` and `sku` after data has been synced from Eezee Server.
+model Item {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  id                       String  @id
+  sellerId                 String
+  title                    String
+  brand                    String
+  mainCat                  String
+  baseCurrency             String
+  deleted                  Boolean
+  modelNumber              String  @default("")
+  sku                      String  @default("")
+  supplierSku              String  @default("")
+  isHiddenFromSearchEngine Boolean @default(false)
+
+  // FK
+  subCat             String
+  ItemInCatalogs     ItemInCatalog[]
+  ItemSpecifications ItemSpecification[]
+  ItemCategory       ItemCategory        @relation(fields: [subCat], references: [titleUrl])
+
+  @@index([baseCurrency, subCat])
+}
+
+model VertexItemSearchEngine {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  id                   String    @id @default(cuid())
+  readyAt              DateTime?
+  engineId             String
+  engineDisplayName    String
+  dataStoreId          String
+  dataStoreDisplayName String
+}
+
+// ███████╗███╗   ██╗██╗   ██╗███╗   ███╗
+// ██╔════╝████╗  ██║██║   ██║████╗ ████║
+// █████╗  ██╔██╗ ██║██║   ██║██╔████╔██║
+// ██╔══╝  ██║╚██╗██║██║   ██║██║╚██╔╝██║
+// ███████╗██║ ╚████║╚██████╔╝██║ ╚═╝ ██║
+// ╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝     ╚═╝
+//
+enum MODEL_WITH_EXCEL {
+  CATALOG_ITEM
+  ITEM_SPECIFICATION
+}
+
+enum E_SPEC_COLUMN_DATATYPES {
+  NUMBER
+  PLAINTEXT
+  BOOLEAN
+}
